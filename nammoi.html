@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Night Sky – Music Fixed</title>
+
+<style>
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#000;
+}
+canvas{display:block}
+
+/* màn hình bật nhạc */
+#start{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.75);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff;
+  font-size:26px;
+  font-family:sans-serif;
+  cursor:pointer;
+  z-index:10;
+}
+</style>
+</head>
+
+<body>
+
+<div id="start">🌙 Click để bật nhạc 🎶</div>
+<canvas id="c"></canvas>
+
+<!-- VIDEO DÙNG LÀM NHẠC (LINK ONLINE, CHẠY NGAY) -->
+<video id="bgm" loop playsinline>
+  <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4">
+</video>
+
+<script>
+/* ========= AUDIO ========= */
+const video = document.getElementById("bgm");
+video.volume = 0.7;
+
+document.getElementById("start").onclick = ()=>{
+  video.play();
+  document.getElementById("start").remove();
+};
+
+/* ========= CANVAS ========= */
+const c = document.getElementById("c");
+const ctx = c.getContext("2d");
+
+function resize(){
+  c.width = innerWidth;
+  c.height = innerHeight;
+}
+resize();
+window.onresize = resize;
+
+/* ===== NỀN ===== */
+function background(){
+  const g = ctx.createLinearGradient(0,0,0,c.height);
+  g.addColorStop(0,"#4b4f9c");
+  g.addColorStop(0.5,"#6b61a8");
+  g.addColorStop(1,"#1f2d46");
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,c.width,c.height);
+}
+
+/* ===== TRĂNG ===== */
+function moon(){
+  const x = c.width*0.72;
+  const y = c.height*0.22;
+  const r = 110;
+
+  const glow = ctx.createRadialGradient(x,y,r,x,y,r*3);
+  glow.addColorStop(0,"rgba(255,255,255,0.9)");
+  glow.addColorStop(1,"rgba(255,255,255,0)");
+
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x,y,r*3,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="#fff";
+  ctx.beginPath();
+  ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fill();
+}
+
+/* ===== MÂY ===== */
+function cloud(x,y,s){
+  ctx.save();
+  ctx.filter="blur(9px)";
+  ctx.globalAlpha=0.85;
+  ctx.fillStyle="#f2c9a5";
+  ctx.beginPath();
+  ctx.arc(x,y,60*s,0,Math.PI*2);
+  ctx.arc(x+55*s,y-18*s,70*s,0,Math.PI*2);
+  ctx.arc(x+130*s,y,75*s,0,Math.PI*2);
+  ctx.arc(x+80*s,y+26*s,65*s,0,Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+let cloudOffset = 0;
+function clouds(){
+  cloudOffset += 0.01;
+  cloud(c.width*0.15 - cloudOffset*0.2, c.height*0.34, 1.25);
+  cloud(c.width*0.65 - cloudOffset*0.18, c.height*0.38, 1.15);
+  cloud(c.width*0.40 - cloudOffset*0.12, c.height*0.48, 1.45);
+  cloud(c.width*0.25 - cloudOffset*0.08, c.height*0.72, 2.0);
+  cloud(c.width*0.80 - cloudOffset*0.06, c.height*0.62, 1.1);
+}
+
+/* ===== LẤP LÁNH ===== */
+const sparkles = Array.from({length:80},()=>({
+  x:Math.random()*c.width,
+  y:Math.random()*c.height*0.55,
+  a:Math.random()*6,
+  s:Math.random()*0.03+0.02
+}));
+
+function drawSparkles(){
+  sparkles.forEach(p=>{
+    p.a += p.s;
+    const alpha = 0.4 + Math.sin(p.a)*0.5;
+    ctx.strokeStyle = `rgba(255,240,180,${alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(p.x-6,p.y);
+    ctx.lineTo(p.x+6,p.y);
+    ctx.moveTo(p.x,p.y-6);
+    ctx.lineTo(p.x,p.y+6);
+    ctx.stroke();
+  });
+}
+
+/* ===== PHÁO HOA ===== */
+class Firework{
+  constructor(){
+    this.x=Math.random()*c.width;
+    this.y=Math.random()*c.height*0.45;
+    this.life=90;
+    this.p=[];
+    for(let i=0;i<130;i++){
+      const a=Math.random()*Math.PI*2;
+      const s=Math.random()*3+1;
+      this.p.push({
+        x:this.x,y:this.y,
+        vx:Math.cos(a)*s,
+        vy:Math.sin(a)*s
+      });
+    }
+  }
+  update(){
+    this.life--;
+    this.p.forEach(pt=>{
+      pt.x+=pt.vx;
+      pt.y+=pt.vy;
+      pt.vx*=0.95;
+      pt.vy*=0.95;
+    });
+  }
+  draw(){
+    ctx.globalCompositeOperation="lighter";
+    ctx.fillStyle="#ffe066";
+    this.p.forEach(pt=>{
+      ctx.beginPath();
+      ctx.arc(pt.x,pt.y,2,0,Math.PI*2);
+      ctx.fill();
+    });
+    ctx.globalCompositeOperation="source-over";
+  }
+}
+
+let fireworks=[];
+setInterval(()=>{
+  fireworks.push(new Firework());
+  if(Math.random()>0.6) fireworks.push(new Firework());
+},420);
+
+/* ===== LOOP ===== */
+function animate(){
+  background();
+  drawSparkles();
+  moon();
+  clouds();
+
+  fireworks.forEach((f,i)=>{
+    f.update();
+    f.draw();
+    if(f.life<0)fireworks.splice(i,1);
+  });
+
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+
+</body>
+</html>
